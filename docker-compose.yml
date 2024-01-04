@@ -1,0 +1,47 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: metastore_db
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: password
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    container_name: postgres
+
+  metastore-standalone:
+    image: hive:latest
+    environment:
+      - SERVICE_NAME=metastore
+      - DB_DRIVER=postgres
+      - SERVICE_OPTS=-Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/metastore_db -Djavax.jdo.option.ConnectionUserName=hive -Djavax.jdo.option.ConnectionPassword=password
+    ports:
+      - "9083:9083"
+    volumes:
+      - warehouse:/opt/hive/data/warehouse
+    depends_on:
+      - postgres
+    container_name: metastore-standalone
+
+  hiveserver2:
+    image: hive:latest
+    environment:
+      - SERVICE_NAME=hiveserver2
+      - SERVICE_OPTS=-Dhive.metastore.uris=thrift://metastore-standalone:9083
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+      - "2222:22"
+    volumes:
+      - warehouse:/opt/hive/data/warehouse
+    depends_on:
+      - metastore-standalone
+    container_name: hiveserver2
+
+volumes:
+  warehouse:
+  postgres_data:
